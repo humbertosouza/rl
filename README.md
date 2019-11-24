@@ -1,2 +1,5 @@
-# rl
-Reinforcement Learning Basic and Test
+# Reinforcement Learning Sandbox
+
+Reinforcement Learning Basics and Tests
+
+
