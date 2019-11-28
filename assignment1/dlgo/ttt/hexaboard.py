@@ -25,6 +25,7 @@ COLS = tuple(range(1, BOARD_SIZE + 1))
 
 class Board:
     def __init__(self):
+        #Populate the Hexapawn board
         self._grid = {Point(row=1,col=1):Player.x, Point(row=1,col=2):Player.x,Point(row=1,col=3):Player.x,
         Point(row=3,col=1):Player.o, Point(row=3,col=2):Player.o,Point(row=3,col=3):Player.o}
 
@@ -34,30 +35,6 @@ class Board:
         assert self.is_on_grid(point)
         # ttt check if position is empty
         #assert self._grid.get(point) is None
-
-        
-        #Check if point a diagonal containing the opponent
-        if player == Player.x:
-            print("x>1", point.row,point.col, self._grid.get(point.row,point.col), self._grid.get(point.row - 1,point.col - 1),self._grid.get(point.row - 1 ,point.col + 1) )
-
-            if self._grid.get(point.row,point.col) == Player.o \
-                and (
-                    self._grid.get(point.row - 1,point.col - 1) == Player.x \
-                    or \
-                    self._grid.get(point.row - 1 ,point.col + 1) == Player.x \
-                ):
-                do_place = True
-
-        #Check if point is empty or it is a diagonal containing the opponent
-        if player == Player.o:
-            if self._grid.get(point.row,point.col) == Player.x \
-                and (
-                    self._grid.get(point.row + 1,point.col - 1) == Player.o \
-                    or \
-                    self._grid.get(point.row + 1 ,point.col + 1) == Player.o \
-                ):
-                do_place = True
-                
         #Moving to an empty space (straigh line, with check)
         if self._grid.get(point) is None:
             #Erase former piece
@@ -67,12 +44,47 @@ class Board:
             if player == Player.o and self._grid[Point(point.row+1,point.col)] == Player.o:
                 self._grid[Point(point.row+1,point.col)] = None
                 do_place = True
+
+        
+        #Check if point a diagonal containing the opponent
+        if player == Player.x and do_place == False:
+            """
+            print("Place X", point.row,point.col, self._grid.get(Point(point.row,point.col)),\
+                 self._grid.get(Point(point.row - 1,point.col - 1 )), \
+                 self._grid.get(Point(point.row - 1 ,point.col + 1 )) )
+            """
+            if self._grid.get(Point(point.row,point.col)) == Player.o \
+              and self._grid.get(Point(point.row - 1,point.col - 1)) == Player.x:
+                # Erase the former pawn
+                self._grid[Point(point.row-1,point.col-1)] = None
+                do_place = True
+
+            if self._grid.get(Point(point.row,point.col)) == Player.o \
+              and self._grid.get(Point(point.row - 1 ,point.col + 1)) == Player.x:
+                # Erase the former pawn
+                self._grid[Point(point.row-1,point.col+1)] = None            
+                do_place = True
+
+        #Check if point is empty or it is a diagonal containing the opponent
+        if player == Player.o and do_place == False:
+            if self._grid.get(Point(point.row,point.col)) == Player.x \
+              and self._grid.get(Point(point.row + 1,point.col - 1)) == Player.o:
+                # Erase the former pawn
+                self._grid[Point(point.row+1,point.col-1)] = None   
+                do_place = True
+            
+            if self._grid.get(Point(point.row,point.col)) == Player.x \
+              and self._grid.get(Point(point.row + 1 ,point.col + 1)) == Player.o:
+                # Erase the former pawn
+                self._grid[Point(point.row+1,point.col+1)] = None   
+                do_place = True
                     
         # Place the pawn
         if do_place:
             self._grid[point] = player
             
-        # Erase the former pawn
+
+        
         
         
 
@@ -130,34 +142,45 @@ class GameState:
         if move.point.row >= 3 and player == Player.o:
             return False
         
+        #Check if point is has opponent or it is a diagonal containing the opponent
         if player == Player.x and move.point.row > 1:
-            if self.board._grid.get(move.point.row,move.point.col) == Player.o \
+            #Check if the targeted poin has the opponent
+            if self.board._grid.get(move.point) == Player.o \
                 and (
-                    self.board._grid.get(move.point.row - 1,move.point.col - 1) == Player.x \
+                    # check if the previous position is a diagonal and contains the x player. any of them may be true
+                    self.board._grid.get(Point(move.point.row - 1,move.point.col - 1)) == Player.x \
                     or \
-                    self.board._grid.get(move.point.row - 1 ,move.point.col + 1) == Player.x \
-                ):
+                    self.board._grid.get(Point(move.point.row - 1 ,move.point.col + 1)) == Player.x \
+            ):
+                """
+                print("isv_X>1", move.point.row,move.point.col, self.board._grid.get(Point(move.point.row,move.point.col)),\
+                        self.board._grid.get(Point(move.point.row - 1,move.point.col - 1 )), \
+                        self.board._grid.get(Point(move.point.row - 1,move.point.col + 1 )) )
+                """       
                 is_valid = True
 
-        #Check if point is empty or it is a diagonal containing the opponent
         if player == Player.o and move.point.row < 3:
-            if self.board._grid.get(move.point.row,move.point.col) == Player.x \
+            if self.board._grid.get(move.point) == Player.x \
                 and (
-                    self.board._grid.get(move.point.row + 1,move.point.col - 1) == Player.o \
+                    self.board._grid.get(Point(move.point.row + 1,move.point.col - 1)) == Player.o \
                     or \
-                    self.board._grid.get(move.point.row + 1 ,move.point.col + 1) == Player.o \
-                ):
+                    self.board._grid.get(Point(move.point.row + 1 ,move.point.col + 1)) == Player.o \
+            ):
+                """    
+                print("isv_Y>1", move.point.row,move.point.col, self.board._grid.get(Point(move.point.row,move.point.col)),\
+                        self.board._grid.get(Point(move.point.row + 1,move.point.col - 1 )), \
+                        self.board._grid.get(Point(move.point.row + 1,move.point.col + 1 )) )
+                """            
                 is_valid = True
-
         #Moving to an empty space (straigh line, with check)
         if self.board._grid.get(move.point) is None: 
             #print("o empty", player, move.point.row, "  ", self.board._grid[Point(move.point.row+1,move.point.col)])
             #Check if the piece was at its previous position
             if player == Player.x and move.point.row > 1 \
-                and self.board._grid[Point(move.point.row-1,move.point.col)] == Player.x:
+                and self.board._grid.get(Point(move.point.row-1,move.point.col)) == Player.x:
                 is_valid = True
             if player == Player.o  and move.point.row < 3 \
-                and self.board._grid[Point(move.point.row+1,move.point.col)] == Player.o:
+                and self.board._grid.get(Point(move.point.row+1,move.point.col)) == Player.o:
                 is_valid = True
 
 
@@ -171,20 +194,12 @@ class GameState:
             for col in COLS:
                 move = Move(Point(row, col))
                 if self.is_valid_move(move):
+                  #  print("move", move.point)
                     moves.append(move)
+        
         return moves
 
     def is_over(self):
-
-        # ttt implementation commented
-        #if self._has_3_in_a_row(Player.x):
-        #    return True
-        #if self._has_3_in_a_row(Player.o):
-        #    return True
-        #if all(self.board.get(Point(row, col)) is not None
-        #       for row in ROWS
-        #       for col in COLS):
-        #    return True
 
         # Hexapawn Test for both players
         if self.player_reached_opposite_side(Player.x):
@@ -192,7 +207,7 @@ class GameState:
         if self.player_reached_opposite_side(Player.o):
             return True
 
-        # Hexapawn always has no more valid moves.
+        # Hexapawn - Check if it has no more valid moves.
         if len(self.legal_moves()) == 0:
             return True
 
@@ -211,7 +226,7 @@ class GameState:
                 return True
         return False
         
-
+    #Former method for ttt
     def _has_3_in_a_row(self, player):
         # Vertical
         for col in COLS:
@@ -240,10 +255,17 @@ class GameState:
             return Player.x
         if self.player_reached_opposite_side(Player.o):
             return Player.o
+            
+        # If no more moves, the last player that played is the winner    
+        if self.next_player == Player.x:    
+            return Player.o
+        else:
+            return Player.x
+            
          
         # Old ttt implementation    
         #if self._has_3_in_a_row(Player.x):
         #    return Player.x
         #if self._has_3_in_a_row(Player.o):
         #    return Player.o
-        return None
+        #return None
