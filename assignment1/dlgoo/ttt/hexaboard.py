@@ -1,6 +1,6 @@
 import copy
 
-from dlgo.ttt.ttttypes import Player, Point
+from dlgoo.ttt.ttttypes import Player, Point
 
 __all__ = [
     'Board',
@@ -33,17 +33,21 @@ class Board:
         do_place = False
         # Check if point is on grid
         assert self.is_on_grid(point)
-        # ttt check if position is empty
-        #assert self._grid.get(point) is None
         #Moving to an empty space (straigh line, with check)
         if self._grid.get(point) is None:
             #Erase former piece
             if player == Player.x and self._grid[Point(point.row-1,point.col)] == Player.x:
+                # Erase the former pawn
                 self._grid[Point(point.row-1,point.col)] = None
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
             if player == Player.o and self._grid[Point(point.row+1,point.col)] == Player.o:
+                # Erase the former pawn                
                 self._grid[Point(point.row+1,point.col)] = None
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
 
         
         #Check if point a diagonal containing the opponent
@@ -57,13 +61,17 @@ class Board:
               and self._grid.get(Point(point.row - 1,point.col - 1)) == Player.x:
                 # Erase the former pawn
                 self._grid[Point(point.row-1,point.col-1)] = None
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
 
             if self._grid.get(Point(point.row,point.col)) == Player.o \
               and self._grid.get(Point(point.row - 1 ,point.col + 1)) == Player.x:
                 # Erase the former pawn
                 self._grid[Point(point.row-1,point.col+1)] = None            
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
 
         #Check if point is empty or it is a diagonal containing the opponent
         if player == Player.o and do_place == False:
@@ -71,20 +79,23 @@ class Board:
               and self._grid.get(Point(point.row + 1,point.col - 1)) == Player.o:
                 # Erase the former pawn
                 self._grid[Point(point.row+1,point.col-1)] = None   
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
             
             if self._grid.get(Point(point.row,point.col)) == Player.x \
               and self._grid.get(Point(point.row + 1 ,point.col + 1)) == Player.o:
                 # Erase the former pawn
                 self._grid[Point(point.row+1,point.col+1)] = None   
-                do_place = True
+                # Place the pawn
+                self._grid[point] = player
+                return
                     
         # Place the pawn
-        if do_place:
-            self._grid[point] = player
+        #if do_place:
+        #    self._grid[point] = player
             
-
-        
+ 
         
         
 
@@ -183,8 +194,6 @@ class GameState:
                 and self.board._grid.get(Point(move.point.row+1,move.point.col)) == Player.o:
                 is_valid = True
 
-
-        #print(is_valid)
             
         return is_valid
         
@@ -194,7 +203,6 @@ class GameState:
             for col in COLS:
                 move = Move(Point(row, col))
                 if self.is_valid_move(move):
-                  #  print("move", move.point)
                     moves.append(move)
         
         return moves

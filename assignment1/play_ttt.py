@@ -1,5 +1,5 @@
-from dlgo import minimax
-from dlgo import ttt
+from dlgoo import minimax
+from dlgoo import ttt
 
 from six.moves import input
 
