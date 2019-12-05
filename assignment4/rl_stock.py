@@ -11,6 +11,9 @@ import pickle
 
 from sklearn.preprocessing import StandardScaler
 
+# It is a matter or perspective why not use RNN
+# Because the state changes and you do act so that it makes sense
+# The trade is taken and the environment is updated accordingly
 
 # Let's use AAPL (Apple), MSI (Motorola), SBUX (Starbucks)
 def get_data():
@@ -19,7 +22,8 @@ def get_data():
   # 0 = AAPL
   # 1 = MSI
   # 2 = SBUX
-  df = pd.read_csv('aapl_msi_sbux.csv')
+  #df = pd.read_csv('aapl_msi_sbux.csv')
+  df = pd.read_csv('BTCUSDT-4h-data-pure.csv')
   return df.values
 
 
