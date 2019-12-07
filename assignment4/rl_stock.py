@@ -16,14 +16,13 @@ from sklearn.preprocessing import StandardScaler
 # The trade is taken and the environment is updated accordingly
 
 # Let's use AAPL (Apple), MSI (Motorola), SBUX (Starbucks)
-def get_data():
+def get_data(file):
   # returns a T x 3 list of stock prices
   # each row is a different stock
   # 0 = AAPL
   # 1 = MSI
   # 2 = SBUX
-  #df = pd.read_csv('aapl_msi_sbux.csv')
-  df = pd.read_csv('BTCUSDT-4h-data-pure.csv')
+  df = pd.read_csv(file)
   return df.values
 
 
@@ -255,11 +254,11 @@ class MultiStockEnv:
 
 
 class DQNAgent(object):
-  def __init__(self, state_size, action_size):
+  def __init__(self, state_size, action_size, gama=0.95, epsilon=1.0):
     self.state_size = state_size
     self.action_size = action_size
-    self.gamma = 0.95  # discount rate
-    self.epsilon = 1.0  # exploration rate
+    self.gamma = gama  # discount rate
+    self.epsilon = epsilon  # exploration rate
     self.epsilon_min = 0.01
     self.epsilon_decay = 0.995
     self.model = LinearModel(state_size, action_size)
@@ -311,79 +310,140 @@ def play_one_episode(agent, env, is_train):
 
   return info['cur_val']
 
+def write_txt_header( num_episodes,batch_size,initial_investment):
+  f=open("rewards_report.txt","a+")
+  f.write("-----------------------------------------------\r\n")
+  f.write("----------- Starting new cycle ----------------\r\n")
+  f.write("-----------------------------------------------\r\n")
+  txt_now = f'{datetime.now()}'
+  f.write(txt_now)
+  f.write("\r\n")
+  f.write(f'Paramenters: num_episodes:{num_episodes}; batch_size:{batch_size}; initial_investiment:{initial_investment}')
+  f.write("\r\n")
+  f.close()
+
 
 
 if __name__ == '__main__':
 
-  # config
-  models_folder = 'linear_rl_trader_models'
-  rewards_folder = 'linear_rl_trader_rewards'
+  exploreHyper = [
+    (0.95,0.95,'train'),(0.95,0.95,'test'),
+    (0.95,0.6,'train'),(0.95,0.6,'test'),
+    (0.75,0.95,'train'),(0.75,0.95,'test'),
+    (0.75,0.6,'train'),(0.75,0.6,'test'),
+    (0.55,0.95,'train'),(0.55,0.95,'test'),
+    (0.55,0.6,'train'),(0.55,0.6,'test'),
+    (0.45,0.95,'train'),(0.45,0.95,'test'),
+    (0.45,0.6,'train'),(0.45,0.6,'test'),
+  ]
+
   num_episodes = 2000
   batch_size = 32
   initial_investment = 20000
+  
+  write_txt_header(num_episodes,batch_size,initial_investment)
+
+  for gama,epslon, mode in exploreHyper:    
+    # config
+    models_folder = f'btc-linear_rl_trader_models_{gama}_{epslon}'
+    rewards_folder = f'btc-linear_rl_trader_rewards_{gama}_{epslon}'
+    file = 'BTCUSDT-4h-data-pure.csv' # 'BTCUSDT-4h-data-pure.csv' or 'aapl_msi_sbux.csv' 
+
+    #parser = argparse.ArgumentParser()
+    #parser.add_argument('-m', '--mode', type=str, required=True,
+    #                    help='either "train" or "test"')
+    #args = parser.parse_args()
+
+    maybe_make_dir(models_folder)
+    maybe_make_dir(rewards_folder)
+
+    data = get_data(file)
+    n_timesteps, n_stocks = data.shape
+
+    n_train = n_timesteps // 2
+
+    train_data = data[:n_train]
+    test_data = data[n_train:]
+
+    env = MultiStockEnv(train_data, initial_investment)
+    state_size = env.state_dim
+    action_size = len(env.action_space)
+    agent = DQNAgent(state_size, action_size, gama, epslon)
+    scaler = get_scaler(env)
+
+    # store the final value of the portfolio (end of episode)
+    portfolio_value = []
+
+    #if args.mode == 'test':
+    if mode == 'test':
+        # then load the previous scaler
+        with open(f'{models_folder}/scaler.pkl', 'rb') as f:
+            scaler = pickle.load(f)
+
+        # remake the env with test data
+        env = MultiStockEnv(test_data, initial_investment)
+
+        # make sure epsilon is not 1!
+        # no need to run multiple episodes if epsilon = 0, it's deterministic
+        agent.epsilon = 0.01
+
+        # load trained weights
+        agent.load(f'{models_folder}/linear.npz')
+
+    # play the game num_episodes times
+    for e in range(num_episodes):
+        t0 = datetime.now()
+        val = play_one_episode(agent, env, mode)
+        dt = datetime.now() - t0
+        #print(f"episode: {e + 1}/{num_episodes}, episode end value: {val:.2f}, duration: {dt}")
+        portfolio_value.append(val) # append episode end portfolio value
+
+    # save the weights when we are done
+    #if args.mode == 'train':
+    if mode == 'train':
+        # save the DQN
+        agent.save(f'{models_folder}/linear.npz')
+
+        # save the scaler
+        with open(f'{models_folder}/scaler.pkl', 'wb') as f:
+            pickle.dump(scaler, f)
+
+        # plot losses
+        plt.plot(agent.model.losses)
+        plt.savefig(f'{rewards_folder}/{mode}-losses.png')
+        plt.clf()
+        #plt.show()
 
 
-  parser = argparse.ArgumentParser()
-  parser.add_argument('-m', '--mode', type=str, required=True,
-                      help='either "train" or "test"')
-  args = parser.parse_args()
+    # save portfolio value for each episode
+    #np.save(f'{rewards_folder}/{args.mode}.npy', portfolio_value)
+    np.save(f'{rewards_folder}/{mode}.npy', portfolio_value)
 
-  maybe_make_dir(models_folder)
-  maybe_make_dir(rewards_folder)
+    # =============================================================
+    # Print reward charts
+    #
+    # =============================================================
 
-  data = get_data()
-  n_timesteps, n_stocks = data.shape
+    url = f'{rewards_folder}/{mode}.npy'
+    a = np.load(url)
 
-  n_train = n_timesteps // 2
+    text = f"{mode}-{gama}-{epslon} - average reward: {a.mean():.2f}, min: {a.min():.2f}, max: {a.max():.2f}"
+    print(text)
+    f=open("rewards_report.txt","a+")
+    f.write(text)
+    f.write("\r\n")
+    txt_now = f'{datetime.now()}'
+    f.write(txt_now)   
+    print(txt_now) 
+    f.write("\r\n")
+    f.close()
 
-  train_data = data[:n_train]
-  test_data = data[n_train:]
-
-  env = MultiStockEnv(train_data, initial_investment)
-  state_size = env.state_dim
-  action_size = len(env.action_space)
-  agent = DQNAgent(state_size, action_size)
-  scaler = get_scaler(env)
-
-  # store the final value of the portfolio (end of episode)
-  portfolio_value = []
-
-  if args.mode == 'test':
-    # then load the previous scaler
-    with open(f'{models_folder}/scaler.pkl', 'rb') as f:
-      scaler = pickle.load(f)
-
-    # remake the env with test data
-    env = MultiStockEnv(test_data, initial_investment)
-
-    # make sure epsilon is not 1!
-    # no need to run multiple episodes if epsilon = 0, it's deterministic
-    agent.epsilon = 0.01
-
-    # load trained weights
-    agent.load(f'{models_folder}/linear.npz')
-
-  # play the game num_episodes times
-  for e in range(num_episodes):
-    t0 = datetime.now()
-    val = play_one_episode(agent, env, args.mode)
-    dt = datetime.now() - t0
-    print(f"episode: {e + 1}/{num_episodes}, episode end value: {val:.2f}, duration: {dt}")
-    portfolio_value.append(val) # append episode end portfolio value
-
-  # save the weights when we are done
-  if args.mode == 'train':
-    # save the DQN
-    agent.save(f'{models_folder}/linear.npz')
-
-    # save the scaler
-    with open(f'{models_folder}/scaler.pkl', 'wb') as f:
-      pickle.dump(scaler, f)
-
-    # plot losses
-    plt.plot(agent.model.losses)
-    plt.show()
-
-
-  # save portfolio value for each episode
-  np.save(f'{rewards_folder}/{args.mode}.npy', portfolio_value)
+    plt.hist(a, bins=20)
+    plt.title(mode)
+    # Prepare to save the figure
+    #fig1 = plt.gcf()
+    #plt.show()
+    #fig1.savefig(f'/content/drive/My Drive/Colab Notebooks/rl/final/linear_rl_trader_rewards/{mode}-{a.mean()}.png')
+    plt.savefig(f'{rewards_folder}/{mode}-{a.mean()}.png')
+    plt.clf()
+    

@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+assignment4/oldtests
+
+assignment4/btc-linear_rl_*
+
 # C extensions
 *.so
 
