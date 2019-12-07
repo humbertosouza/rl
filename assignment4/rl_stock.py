@@ -338,7 +338,7 @@ if __name__ == '__main__':
   ]
 
   num_episodes = 2000
-  batch_size = 32
+  batch_size = 16
   initial_investment = 20000
   
   write_txt_header(num_episodes,batch_size,initial_investment)
